@@ -108,3 +108,19 @@ def naturalsize(
     space = "" if gnu else " "
     ret: str = format % (bytes_ / (base**exp)) + space + _(suffix[exp - 1])
     return ret
+
+
+def format_rate(size_str: str, per: str = "s") -> str:
+    """Join a human-readable size with a time unit using a slash.
+
+    This helper composes an already-formatted size (for example from
+    ``naturalsize``) with a period label.
+
+    Examples:
+        >>> format_rate("1.0 MB")
+        '1.0 MB/s'
+        >>> format_rate("300 Bytes", "min")
+        '300 Bytes/min'
+    """
+    return f"{size_str}/{per}"
+
