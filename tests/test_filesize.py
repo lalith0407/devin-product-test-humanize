@@ -112,7 +112,7 @@ def test_naturalsize(test_args: list[int] | list[int | bool], expected: str) -> 
         ([10**6], "1.0 MB/s"),
         ([10**6, "B", "h"], "1.0 MB/h"),
         ([10**6, "B", "min"], "1.0 MB/min"),
-        ([10**6, "bit"], "1.0 MB bit/s"),
+        ([10**6, "bit"], "1.0 Mbit/s"),
         ([10**6, "B", "s", True], "976.6 KiB/s"),
         ([1024**2 * 32, "B", "s", True], "32.0 MiB/s"),
         ([999999], "1.0 MB/s"),
@@ -131,6 +131,10 @@ def test_naturalrate(
         test_args[0] = f"-{test_args[0]}"
 
     assert humanize.naturalrate(*test_args) == "-" + expected
+
+
+def test_naturalrate_bit_unit() -> None:
+    assert humanize.naturalrate(1, unit="bit") == "1 bit/s"
 
 
 def test_naturalrate_zero() -> None:

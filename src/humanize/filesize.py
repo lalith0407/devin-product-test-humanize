@@ -132,14 +132,17 @@ def naturalrate(
         >>> naturalrate(3000000, binary=True)
         '2.9 MiB/s'
         >>> naturalrate(-4096, per="min")
-        '-4.0 kB/min'
+        '-4.1 kB/min'
+        >>> naturalrate(10**6, unit="bit")
+        '1.0 Mbit/s'
 
         ```
 
     Args:
         value (int, float, str): Rate to convert.
         unit (str): Unit of `value`; the default `"B"` is already expressed by
-            the size suffix, so any other value is appended after it.
+            the size suffix, so any other value replaces the byte unit in the
+            suffix (e.g. `"bit"` gives `'1.0 Mbit/s'`).
         per (str): Unit of time the rate is measured over.
         binary (bool): If `True`, uses binary suffixes (KiB, MiB) with base
             2<sup>10</sup> instead of 10<sup>3</sup>.
@@ -149,5 +152,9 @@ def naturalrate(
     """
     size = naturalsize(value, binary=binary)
     if unit != "B":
-        size = f"{size} {unit}"
+        for ending in ("Bytes", "Byte", "B"):
+            if size.endswith(ending):
+                plural = "s" if ending == "Bytes" else ""
+                size = f"{size[: -len(ending)]}{unit}{plural}"
+                break
     return f"{size}/{per}"
