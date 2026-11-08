@@ -1,0 +1,45 @@
+name: CLI
+
+on: [push, pull_request, workflow_dispatch]
+
+permissions: {}
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: 1
+
+jobs:
+  cli:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package
+        # The project declares requires-python >=3.11, but the CLI itself is
+        # compatible with 3.10, so for the smoke test we run it straight from
+        # the source tree without installing the distribution metadata.
+        run: |
+          if [ "${{ matrix.python-version }}" = "3.10" ]; then
+            echo "PYTHONPATH=src" >> "$GITHUB_ENV"
+          else
+            pip install .
+          fi
+
+      - name: Smoke test the CLI
+        run: |
+          python -m humanize intcomma 1234567 | grep -Fx "1,234,567"
+          python -m humanize naturaltime 3600 | grep -F "ago"
+          python -m humanize metric 1500 --unit V | grep -Fx "1.50 kV"
+          python -m humanize precisedelta P1DT2H --suppress days --json | grep -F '"precisedelta"'
+          humanize ordinal 3
