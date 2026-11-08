@@ -6,7 +6,7 @@ __lazy_modules__ = {"humanize.i18n"}
 
 from humanize.i18n import _gettext as _
 
-suffixes = {
+SIZE_SUFFIXES = {
     "decimal": (
         "kB",
         "MB",
@@ -80,11 +80,11 @@ def naturalsize(
         str: Human readable representation of a filesize.
     """
     if gnu:
-        suffix = suffixes["gnu"]
+        suffix = SIZE_SUFFIXES["gnu"]
     elif binary:
-        suffix = suffixes["binary"]
+        suffix = SIZE_SUFFIXES["binary"]
     else:
-        suffix = suffixes["decimal"]
+        suffix = SIZE_SUFFIXES["decimal"]
 
     base = 1024 if (gnu or binary) else 1000
     bytes_ = float(value)
@@ -93,10 +93,25 @@ def naturalsize(
     if abs_bytes == 1 and not gnu:
         return _("%d Byte") % int(bytes_)
 
-    if abs_bytes < base:
+    first = 1000 if binary and not gnu else base
+    if abs_bytes < first:
         return f"{int(bytes_)}B" if gnu else _("%d Bytes") % int(bytes_)
 
     from math import log
+
+    if binary and not gnu:
+        remaining = abs_bytes / 1000.0
+        exp = 1
+        while exp < len(suffix) and remaining >= 1024:
+            remaining /= 1024.0
+            exp += 1
+        if exp < len(suffix) and abs(float(format % remaining)) >= 1024:
+            remaining /= 1024.0
+            exp += 1
+        space = " "
+        divisor = 1000 * (1024 ** (exp - 1))
+        ret: str = format % (bytes_ / divisor) + space + _(suffix[exp - 1])
+        return ret
 
     exp = int(min(log(abs_bytes, base), len(suffix)))
     # The suffix is chosen from the unrounded byte count, but `format` rounds the
