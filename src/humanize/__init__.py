@@ -11,7 +11,7 @@ __lazy_modules__ = {
     "humanize.time",
 }
 
-from humanize.filesize import naturalsize
+from humanize.filesize import naturalrate, naturalsize
 from humanize.i18n import activate, deactivate, decimal_separator, thousands_separator
 from humanize.lists import natural_list
 from humanize.number import (
@@ -49,6 +49,7 @@ __all__ = [
     "naturaldate",
     "naturalday",
     "naturaldelta",
+    "naturalrate",
     "naturalsize",
     "naturaltime",
     "ordinal",
