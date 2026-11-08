@@ -115,6 +115,7 @@ def naturalrate(
     unit: str = "B",
     per: str = "s",
     binary: bool = False,
+    format: str = "%.1f",
 ) -> str:
     """Format a throughput rate like a human-readable size per unit of time.
 
@@ -146,11 +147,12 @@ def naturalrate(
         per (str): Unit of time the rate is measured over.
         binary (bool): If `True`, uses binary suffixes (KiB, MiB) with base
             2<sup>10</sup> instead of 10<sup>3</sup>.
+        format (str): Custom formatter passed to `naturalsize`.
 
     Returns:
         str: Human readable representation of a rate.
     """
-    size = naturalsize(value, binary=binary)
+    size = naturalsize(value, binary=binary, format=format)
     if unit != "B":
         for ending in ("Bytes", "Byte", "B"):
             if size.endswith(ending):

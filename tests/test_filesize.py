@@ -137,6 +137,13 @@ def test_naturalrate_bit_unit() -> None:
     assert humanize.naturalrate(1, unit="bit") == "1 bit/s"
 
 
+def test_naturalrate_format() -> None:
+    assert (
+        humanize.naturalrate(1234, format="%.3f")
+        == humanize.naturalsize(1234, format="%.3f") + "/s"
+    )
+
+
 def test_naturalrate_zero() -> None:
     assert humanize.naturalrate(0) == "0 Bytes/s"
     assert humanize.naturalrate("0") == "0 Bytes/s"
