@@ -108,3 +108,46 @@ def naturalsize(
     space = "" if gnu else " "
     ret: str = format % (bytes_ / (base**exp)) + space + _(suffix[exp - 1])
     return ret
+
+
+def naturalrate(
+    value: float | str,
+    unit: str = "B",
+    per: str = "s",
+    binary: bool = False,
+) -> str:
+    """Format a throughput rate like a human-readable size per unit of time.
+
+    For example, `1.0 MB/s`.
+
+    The size is formatted with `naturalsize`, so the same suffixes, rounding,
+    and edge cases (zero, negative, and non-numeric input) apply.
+
+    Examples:
+        ```pycon
+        >>> naturalrate(3000000)
+        '3.0 MB/s'
+        >>> naturalrate(3000000, per="h")
+        '3.0 MB/h'
+        >>> naturalrate(3000000, binary=True)
+        '2.9 MiB/s'
+        >>> naturalrate(-4096, per="min")
+        '-4.0 kB/min'
+
+        ```
+
+    Args:
+        value (int, float, str): Rate to convert.
+        unit (str): Unit of `value`; the default `"B"` is already expressed by
+            the size suffix, so any other value is appended after it.
+        per (str): Unit of time the rate is measured over.
+        binary (bool): If `True`, uses binary suffixes (KiB, MiB) with base
+            2<sup>10</sup> instead of 10<sup>3</sup>.
+
+    Returns:
+        str: Human readable representation of a rate.
+    """
+    size = naturalsize(value, binary=binary)
+    if unit != "B":
+        size = f"{size} {unit}"
+    return f"{size}/{per}"

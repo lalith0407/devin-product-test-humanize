@@ -101,3 +101,43 @@ def test_naturalsize(test_args: list[int] | list[int | bool], expected: str) -> 
         test_args[0] = f"-{test_args[0]}"
 
     assert humanize.naturalsize(*test_args) == "-" + expected
+
+
+@pytest.mark.parametrize(
+    "test_args, expected",
+    [
+        ([1], "1 Byte/s"),
+        ([300], "300 Bytes/s"),
+        (["1000"], "1.0 kB/s"),
+        ([10**6], "1.0 MB/s"),
+        ([10**6, "B", "h"], "1.0 MB/h"),
+        ([10**6, "B", "min"], "1.0 MB/min"),
+        ([10**6, "bit"], "1.0 MB bit/s"),
+        ([10**6, "B", "s", True], "976.6 KiB/s"),
+        ([1024**2 * 32, "B", "s", True], "32.0 MiB/s"),
+        ([999999], "1.0 MB/s"),
+        ([1.123456789 * 10**6], "1.1 MB/s"),
+    ],
+)
+def test_naturalrate(
+    test_args: list[int] | list[int | bool | str], expected: str
+) -> None:
+    assert humanize.naturalrate(*test_args) == expected
+
+    # Retest with negative input
+    if isinstance(test_args[0], int):
+        test_args[0] *= -1
+    else:
+        test_args[0] = f"-{test_args[0]}"
+
+    assert humanize.naturalrate(*test_args) == "-" + expected
+
+
+def test_naturalrate_zero() -> None:
+    assert humanize.naturalrate(0) == "0 Bytes/s"
+    assert humanize.naturalrate("0") == "0 Bytes/s"
+
+
+def test_naturalrate_invalid() -> None:
+    with pytest.raises(ValueError, match="could not convert"):
+        humanize.naturalrate("not a number")
