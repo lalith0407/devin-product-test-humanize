@@ -101,3 +101,16 @@ def test_naturalsize(test_args: list[int] | list[int | bool], expected: str) -> 
         test_args[0] = f"-{test_args[0]}"
 
     assert humanize.naturalsize(*test_args) == "-" + expected
+
+
+@pytest.mark.parametrize(
+    "size, expected",
+    [
+        (31 * 1024, "31.0 KiB"),
+        (32 * 1024**2, "32.0 MiB"),
+        (33 * 1024**3, "33.0 GiB"),
+        (5 * 1024**5, "5.0 PiB"),
+    ],
+)
+def test_naturalsize_binary_exact_powers(size: int, expected: str) -> None:
+    assert humanize.naturalsize(size, binary=True) == expected
