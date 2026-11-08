@@ -141,7 +141,9 @@ def ordinal(value: NumberOrString, gender: str = "male") -> str:
 
 
 def intcomma(
-    value: NumberOrString, ndigits: int | None = None, sep: str = ","
+    value: NumberOrString,
+    ndigits: int | None = None,
+    thousands_sep: str = ",",
 ) -> str:
     """Converts an integer to a string containing commas every three digits.
 
@@ -164,7 +166,7 @@ def intcomma(
         '14,308.4'
         >>> intcomma("14308.40", 1)
         '14,308.4'
-        >>> intcomma(1234567, sep='.')
+        >>> intcomma(1234567, thousands_sep='.')
         '1.234.567'
         >>> intcomma(None)
         'None'
@@ -174,15 +176,19 @@ def intcomma(
     Args:
         value (int, float, str): Integer or float to convert.
         ndigits (int, None): Digits of precision for rounding after the decimal point.
-        sep (str): Thousands separator. The default `','` preserves the
-            locale-aware behavior; any other value is used as the separator.
+        thousands_sep (str): Thousands separator. The default `','` preserves the
+            locale-aware behavior; any other single character is used as the
+            separator. Longer strings raise `ValueError`.
 
     Returns:
         str: String containing commas every three digits.
     """
     import math
 
-    thousands_sep = thousands_separator() if sep == "," else sep
+    if len(thousands_sep) > 1:
+        msg = "thousands_sep must be a single character"
+        raise ValueError(msg)
+    thousands_sep = thousands_separator() if thousands_sep == "," else thousands_sep
     decimal_sep = decimal_separator()
     try:
         if isinstance(value, str):
