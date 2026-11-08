@@ -90,6 +90,31 @@ def test_intcomma_large_integer(sign: int) -> None:
     assert humanize.intcomma(value) == expected
 
 
+@pytest.mark.parametrize(
+    "test_args, expected",
+    [
+        ([1234567], "1,234,567"),
+        ([1234567, None, "."], "1.234.567"),
+        ([1234567, None, " "], "1 234 567"),
+        ([1234567, None, ""], "1234567"),
+        ([-1234567, None, "."], "-1.234.567"),
+        (["1234567", None, "."], "1.234.567"),
+        ([1234567.891, 2, "_"], "1_234_567.89"),
+        ([1234.5454545, 2, "."], "1.234.55"),
+        ([100, None, "."], "100"),
+        ([None, None, "."], "None"),
+        ([math.nan, None, "."], "NaN"),
+    ],
+)
+def test_intcomma_sep(test_args: list, expected: str) -> None:
+    assert humanize.intcomma(*test_args) == expected
+
+
+def test_intcomma_sep_keyword() -> None:
+    assert humanize.intcomma(1234567, sep=".") == "1.234.567"
+    assert humanize.intcomma(1234567, ndigits=1, sep="_") == "1_234_567.0"
+
+
 def test_intword_powers() -> None:
     # make sure that powers & human_powers have the same number of items
     assert len(number.powers) == len(number.human_powers)

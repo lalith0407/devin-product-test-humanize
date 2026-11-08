@@ -140,7 +140,9 @@ def ordinal(value: NumberOrString, gender: str = "male") -> str:
     return f"{value}{P_(*_ORDINAL_SUFFIXES[gender][digit])}"
 
 
-def intcomma(value: NumberOrString, ndigits: int | None = None) -> str:
+def intcomma(
+    value: NumberOrString, ndigits: int | None = None, sep: str = ","
+) -> str:
     """Converts an integer to a string containing commas every three digits.
 
     For example, 3000 becomes "3,000" and 45000 becomes "45,000". To maintain some
@@ -162,6 +164,8 @@ def intcomma(value: NumberOrString, ndigits: int | None = None) -> str:
         '14,308.4'
         >>> intcomma("14308.40", 1)
         '14,308.4'
+        >>> intcomma(1234567, sep='.')
+        '1.234.567'
         >>> intcomma(None)
         'None'
 
@@ -170,13 +174,15 @@ def intcomma(value: NumberOrString, ndigits: int | None = None) -> str:
     Args:
         value (int, float, str): Integer or float to convert.
         ndigits (int, None): Digits of precision for rounding after the decimal point.
+        sep (str): Thousands separator. The default `','` preserves the
+            locale-aware behavior; any other value is used as the separator.
 
     Returns:
         str: String containing commas every three digits.
     """
     import math
 
-    thousands_sep = thousands_separator()
+    thousands_sep = thousands_separator() if sep == "," else sep
     decimal_sep = decimal_separator()
     try:
         if isinstance(value, str):
@@ -199,7 +205,11 @@ def intcomma(value: NumberOrString, ndigits: int | None = None) -> str:
     else:
         result = f"{value:,}"
     if thousands_sep != "," or decimal_sep != ".":
-        result = result.translate(str.maketrans(",.", thousands_sep + decimal_sep))
+        if "." in result:
+            int_part, _, frac_part = result.partition(".")
+            result = int_part.replace(",", thousands_sep) + decimal_sep + frac_part
+        else:
+            result = result.replace(",", thousands_sep)
     return result
 
 
