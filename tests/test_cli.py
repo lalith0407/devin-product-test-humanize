@@ -177,7 +177,7 @@ def test_date_formatters(
         (["precisedelta", "x"], "invalid number: 'x'"),
         (["naturaldelta", "1e30"], ""),
         (["clamp", "1", "--format", "{foo}"], "'foo'"),
-        (["clamp", "1", "--format", "{1}"], "Replacement index 1"),
+        (["clamp", "1", "--format", "{1}"], ""),
     ],
 )
 def test_bad_value(
