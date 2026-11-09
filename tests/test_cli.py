@@ -1,14 +1,23 @@
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
+from pathlib import Path
 
 import freezegun
 import pytest
 
 import humanize
 from humanize import cli
+
+LOCALE_DIR = Path(humanize.i18n.__file__).parent / "locale"
+
+
+def require_locale(locale: str) -> None:
+    if not (LOCALE_DIR / locale / "LC_MESSAGES" / "humanize.mo").exists():
+        pytest.skip("Generate .mo with scripts/generate-translation-binaries.sh")
 
 
 @pytest.fixture(autouse=True)
@@ -252,3 +261,192 @@ def test_python_m_humanize() -> None:
     assert proc.returncode == 0
     assert proc.stdout.strip() == "1,234,567"
     assert proc.stderr == ""
+
+
+@pytest.mark.parametrize(
+    "argv, expected",
+    [
+        (["intcomma", "1234567", "--locale", "de_DE"], "1.234.567"),
+        (["intcomma", "1234567.25", "--locale", "fr_FR"], "1 234 567,25"),
+        (["intword", "1200000000", "--locale", "de_DE"], "1,2 Milliarden"),
+        (["ordinal", "3", "--locale", "fr_FR", "--gender", "female"], "3e"),
+        (["naturaldelta", "3600", "--locale", "ru_RU"], "час"),
+        (
+            ["precisedelta", "3700", "--locale", "fr_FR"],
+            "1 heure, 1 minute et 40 secondes",
+        ),
+        (["apnumber", "5", "--locale", "de_DE"], "fünf"),
+        (["intcomma", "--locale", "it_IT", "1000000"], "1.000.000"),
+    ],
+)
+def test_locale(
+    capsys: pytest.CaptureFixture[str], argv: list[str], expected: str
+) -> None:
+    require_locale(argv[argv.index("--locale") + 1])
+    code, out, err = run(capsys, *argv)
+    assert (code, out, err) == (0, f"{expected}\n", "")
+    assert humanize.intcomma(1234567) == "1,234,567"
+    assert humanize.apnumber(5) == "five"
+
+
+@pytest.mark.parametrize("locale", ["en_US", "en_GB"])
+def test_english_locale_needs_no_translations(
+    capsys: pytest.CaptureFixture[str], locale: str
+) -> None:
+    assert run(capsys, "ordinal", "3", "--locale", locale) == (0, "3rd\n", "")
+
+
+def test_locale_deactivated_after_bad_value(capsys: pytest.CaptureFixture[str]) -> None:
+    require_locale("de_DE")
+    code, out, err = run(capsys, "intcomma", "abc", "--locale", "de_DE")
+    assert code == 1
+    assert out == ""
+    assert err == "humanize intcomma: error: invalid number: 'abc'\n"
+    assert humanize.intcomma(1234567) == "1,234,567"
+
+
+def test_locale_replaces_previously_active_locale(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    require_locale("de_DE")
+    require_locale("fr_FR")
+    humanize.activate("fr_FR")
+    try:
+        assert run(capsys, "apnumber", "5", "--locale", "de_DE") == (0, "fünf\n", "")
+    finally:
+        humanize.deactivate()
+    assert humanize.apnumber(5) == "five"
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [["apnumber", "5"], ["apnumber", "5", "--locale", "xx_XX"]],
+)
+def test_caller_locale_kept_without_locale_flag(
+    capsys: pytest.CaptureFixture[str], argv: list[str]
+) -> None:
+    require_locale("de_DE")
+    humanize.activate("de_DE")
+    try:
+        cli.main(argv)
+        assert humanize.apnumber(5) == "fünf"
+    finally:
+        humanize.deactivate()
+    capsys.readouterr()
+
+
+@pytest.mark.parametrize("locale", ["xx_XX", "not-a-locale"])
+def test_unavailable_locale(capsys: pytest.CaptureFixture[str], locale: str) -> None:
+    code, out, err = run(capsys, "intcomma", "1000", "--locale", locale, "--json")
+    assert code == 1
+    assert out == ""
+    assert err == f"humanize intcomma: error: locale not available: {locale!r}\n"
+    assert humanize.intcomma(1000) == "1,000"
+
+
+@pytest.mark.parametrize(
+    "argv, value, locale, result",
+    [
+        (["intcomma", "1234567", "--json"], "1234567", None, "1,234,567"),
+        (["ordinal", "2", "--json"], "2", None, "2nd"),
+        (
+            ["natural_list", "a", "b", "c", "--json"],
+            ["a", "b", "c"],
+            None,
+            "a, b and c",
+        ),
+        (["natural_list", "--json", "x"], ["x"], None, "x"),
+        (["naturalsize", "--json", "--binary", "1024"], "1024", None, "1.0 KiB"),
+        (["ordinal", "3", "--json", "--locale", "en_GB"], "3", "en_GB", "3rd"),
+    ],
+)
+def test_json(
+    capsys: pytest.CaptureFixture[str],
+    argv: list[str],
+    value: str | list[str],
+    locale: str | None,
+    result: str,
+) -> None:
+    code, out, err = run(capsys, *argv)
+    assert code == 0
+    assert err == ""
+    assert out.endswith("\n")
+    assert out.count("\n") == 1
+    assert json.loads(out) == {
+        "formatter": argv[0],
+        "value": value,
+        "locale": locale,
+        "result": result,
+    }
+
+
+def test_json_with_locale(capsys: pytest.CaptureFixture[str]) -> None:
+    require_locale("de_DE")
+    code, out, err = run(capsys, "intcomma", "1234567", "--locale", "de_DE", "--json")
+    assert (code, err) == (0, "")
+    assert json.loads(out) == {
+        "formatter": "intcomma",
+        "value": "1234567",
+        "locale": "de_DE",
+        "result": "1.234.567",
+    }
+
+
+def test_json_bad_value(capsys: pytest.CaptureFixture[str]) -> None:
+    code, out, err = run(capsys, "intcomma", "abc", "--json")
+    assert code == 1
+    assert out == ""
+    assert err == "humanize intcomma: error: invalid number: 'abc'\n"
+
+
+SAMPLE_VALUES = {
+    "naturaldate": "2020-02-02",
+    "naturalday": "2020-02-02",
+}
+
+
+@pytest.mark.parametrize("name", FORMATTERS)
+def test_every_formatter_accepts_json_and_locale(
+    capsys: pytest.CaptureFixture[str], name: str
+) -> None:
+    value = SAMPLE_VALUES.get(name, "1")
+    code, out, err = run(capsys, name, value, "--locale", "en_US", "--json")
+    assert (code, err) == (0, "")
+    data = json.loads(out)
+    assert data["formatter"] == name
+    assert data["value"] == ([value] if name == "natural_list" else value)
+    assert data["locale"] == "en_US"
+    assert isinstance(data["result"], str)
+
+
+def test_json_flag_defaults() -> None:
+    args = cli.build_parser().parse_args(["intcomma", "1"])
+    assert args.json is False
+    assert args.locale is None
+
+
+def test_python_m_humanize_json_locale() -> None:
+    require_locale("de_DE")
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "humanize",
+            "intcomma",
+            "1234567",
+            "--locale",
+            "de_DE",
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0
+    assert proc.stderr == ""
+    assert json.loads(proc.stdout) == {
+        "formatter": "intcomma",
+        "value": "1234567",
+        "locale": "de_DE",
+        "result": "1.234.567",
+    }
