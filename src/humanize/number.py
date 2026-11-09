@@ -220,6 +220,17 @@ human_powers = (
 )
 
 
+
+def _parse_expression(value: str) -> NumberOrString:
+    """Evaluate simple numeric expressions such as ``"2*10**6"`` or ``"1.5e9"``.
+
+    Falls back to the original string if it cannot be evaluated.
+    """
+    try:
+        return eval(value)
+    except Exception:
+        return value
+
 def intword(value: NumberOrString, format: str = "%.1f") -> str:
     """Converts a large integer to a friendly text representation.
 
@@ -256,6 +267,9 @@ def intword(value: NumberOrString, format: str = "%.1f") -> str:
             be coaxed into an `int`.
     """
     import math
+
+    if isinstance(value, str):
+        value = _parse_expression(value)
 
     try:
         if not math.isfinite(float(value)):
