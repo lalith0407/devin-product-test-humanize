@@ -1,0 +1,110 @@
+name: CLI
+
+on: [push, pull_request, workflow_dispatch]
+
+permissions: {}
+
+env:
+  FORCE_COLOR: 1
+  PIP_DISABLE_PIP_VERSION_CHECK: 1
+
+jobs:
+  smoke-test:
+    name: CLI smoke test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # hatch-vcs needs the tags to compute the version
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install gettext
+        run: |
+          sudo apt install gettext
+
+      - name: Generate translation binaries
+        run: |
+          scripts/generate-translation-binaries.sh
+
+      - name: Install package
+        env:
+          PYTHON_VERSION: ${{ matrix.python-version }}
+        run: |
+          # requires-python is >=3.11, but the CLI is also smoke-tested on 3.10
+          if [ "$PYTHON_VERSION" = "3.10" ]; then
+            python -m pip install --ignore-requires-python .
+          else
+            python -m pip install .
+          fi
+
+      - name: Smoke test CLI
+        working-directory: ${{ runner.temp }}
+        run: |
+          check() {
+            expected="$1"
+            shift
+            actual="$("$@")"
+            if [ "$actual" != "$expected" ]; then
+              echo "::error::'$*' printed '$actual', expected '$expected'"
+              exit 1
+            fi
+            echo "ok: $* -> $actual"
+          }
+
+          check_error() {
+            status=0
+            stderr="$("$@" 2>&1 > /dev/null)" || status=$?
+            if [ "$status" -ne 1 ] || [ -z "$stderr" ]; then
+              echo "::error::'$*' exited with $status, expected 1 with an error on stderr"
+              exit 1
+            fi
+            echo "ok: $* -> exit $status: $stderr"
+          }
+
+          check_json() {
+            expected="$1"
+            shift
+            "$@" | python -c '
+          import json, sys
+          actual = json.load(sys.stdin)
+          expected = json.loads(sys.argv[1])
+          if actual != expected:
+              sys.exit(f"::error::got {actual!r}, expected {expected!r}")
+          print("ok:", json.dumps(actual))
+          ' "$expected"
+          }
+
+          python -c "import sys, humanize; print(sys.version); print(humanize.__version__)"
+          command -v humanize
+
+          for cli in humanize "python -m humanize"; do
+            # shellcheck disable=SC2086
+            {
+              check "1,234,567" $cli intcomma 1234567
+              check "1.2 million" $cli intword 1200000
+              check "3rd" $cli ordinal 3
+              check "five" $cli apnumber 5
+              check "1.0 MB" $cli naturalsize 1000000
+              check "1.234.567" $cli intcomma 1234567 --locale de_DE
+              check "1,2 Millionen" $cli intword 1200000 --locale de_DE
+              check_json \
+                '{"formatter": "intcomma", "value": "1234567", "locale": null, "result": "1,234,567"}' \
+                $cli intcomma 1234567 --json
+              check_json \
+                '{"formatter": "intcomma", "value": "1234567", "locale": "de_DE", "result": "1.234.567"}' \
+                $cli intcomma 1234567 --locale de_DE --json
+              check_error $cli intcomma 1234567 --locale xx_XX
+              check_error $cli intcomma abc
+            }
+          done

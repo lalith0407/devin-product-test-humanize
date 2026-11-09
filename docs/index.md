@@ -7,6 +7,7 @@ Welcome to the humanize API reference.
 - [Filesize](filesize.md)
 - [Lists](lists.md)
 - [I18n](i18n.md)
+- [Command-line interface](cli.md)
 
 {%
    include-markdown "../README.md"
