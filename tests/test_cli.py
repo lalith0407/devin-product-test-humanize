@@ -11,6 +11,13 @@ import humanize
 from humanize import cli
 
 
+@pytest.fixture(autouse=True)
+def no_color(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PYTHON_COLORS", "0")
+    monkeypatch.setenv("NO_COLOR", "1")
+    monkeypatch.delenv("FORCE_COLOR", raising=False)
+
+
 def run(capsys: pytest.CaptureFixture[str], *argv: str) -> tuple[int, str, str]:
     code = cli.main(list(argv))
     out, err = capsys.readouterr()
@@ -55,6 +62,10 @@ def run(capsys: pytest.CaptureFixture[str], *argv: str) -> tuple[int, str, str]:
         (["intcomma", "1234567"], "1,234,567"),
         (["intcomma", "1234.5454545", "--ndigits", "2"], "1,234.55"),
         (["intcomma", "-1000"], "-1,000"),
+        (["intcomma", "-1e3"], "-1,000.0"),
+        (["intcomma", "-.5"], "-0.5"),
+        (["intcomma", "-inf"], "-Inf"),
+        (["naturaltime", "-3600"], "an hour ago"),
         (["intword", "1200000000"], "1.2 billion"),
         (["intword", "1200000000", "--format", "%.2f"], "1.20 billion"),
         (["metric", "1500", "--unit", "V"], "1.50 kV"),
@@ -156,6 +167,8 @@ def test_date_formatters(
         ),
         (["precisedelta", "x"], "invalid number: 'x'"),
         (["naturaldelta", "1e30"], ""),
+        (["clamp", "1", "--format", "{foo}"], "'foo'"),
+        (["clamp", "1", "--format", "{1}"], "Replacement index 1"),
     ],
 )
 def test_bad_value(

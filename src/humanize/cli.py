@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import re
 import sys
 
 import humanize
@@ -9,6 +10,7 @@ import humanize
 TYPE_CHECKING = False
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
+    from typing import Any
 
     Handler = Callable[[argparse.Namespace], str]
 
@@ -23,6 +25,18 @@ _PRECISE_UNITS = (
     "months",
     "years",
 )
+
+
+_NEGATIVE_NUMBER = re.compile(
+    r"^-(?:(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?|inf|infinity|nan)$", re.IGNORECASE
+)
+
+
+class _ArgumentParser(argparse.ArgumentParser):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        # Treat values like -1e3 and -inf as positionals, not options.
+        self._negative_number_matcher = _NEGATIVE_NUMBER
 
 
 def _number(text: str) -> int | float:
@@ -167,7 +181,7 @@ def _precisedelta(args: argparse.Namespace) -> str:
 
 
 def _add_formatter(
-    subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
+    subparsers: argparse._SubParsersAction[_ArgumentParser],
     name: str,
     handler: Handler,
     help: str,
@@ -182,7 +196,7 @@ def _add_formatter(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
+    parser = _ArgumentParser(
         prog="humanize",
         description="Format values in a human-readable way.",
     )
@@ -404,7 +418,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         result = _format(args)
-    except (ArithmeticError, TypeError, ValueError) as exc:
+    except (ArithmeticError, LookupError, TypeError, ValueError) as exc:
         print(f"{parser.prog} {args.formatter}: error: {exc}", file=sys.stderr)
         return 1
     print(result)
