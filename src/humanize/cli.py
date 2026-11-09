@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import json
 import re
 import sys
 
@@ -180,6 +181,21 @@ def _precisedelta(args: argparse.Namespace) -> str:
     )
 
 
+def _common_options() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument(
+        "--locale",
+        metavar="L",
+        help="locale to format in, e.g. de_DE (default: no translation)",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="print a JSON object with the formatter, value, locale and result",
+    )
+    return parser
+
+
 def _add_formatter(
     subparsers: argparse._SubParsersAction[_ArgumentParser],
     name: str,
@@ -189,7 +205,9 @@ def _add_formatter(
     *,
     many: bool = False,
 ) -> argparse.ArgumentParser:
-    parser = subparsers.add_parser(name, help=help, description=help)
+    parser = subparsers.add_parser(
+        name, help=help, description=help, parents=[_common_options()]
+    )
     parser.add_argument("value", nargs="+" if many else None, help=value_help)
     parser.set_defaults(handler=handler)
     return parser
@@ -416,10 +434,31 @@ def _format(args: argparse.Namespace) -> str:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    prefix = f"{parser.prog} {args.formatter}: error:"
     try:
-        result = _format(args)
-    except (ArithmeticError, LookupError, TypeError, ValueError) as exc:
-        print(f"{parser.prog} {args.formatter}: error: {exc}", file=sys.stderr)
-        return 1
+        if args.locale is not None:
+            try:
+                humanize.activate(args.locale)
+            except OSError:
+                print(
+                    f"{prefix} locale not available: {args.locale!r}", file=sys.stderr
+                )
+                return 1
+        try:
+            result = _format(args)
+        except (ArithmeticError, LookupError, TypeError, ValueError) as exc:
+            print(f"{prefix} {exc}", file=sys.stderr)
+            return 1
+    finally:
+        humanize.deactivate()
+    if args.json:
+        result = json.dumps(
+            {
+                "formatter": args.formatter,
+                "value": args.value,
+                "locale": args.locale,
+                "result": result,
+            }
+        )
     print(result)
     return 0
