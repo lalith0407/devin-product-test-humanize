@@ -123,4 +123,3 @@ def format_rate(size_str: str, per: str = "s") -> str:
         '300 Bytes/min'
     """
     return f"{size_str}/{per}"
-
