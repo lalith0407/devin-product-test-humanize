@@ -1,0 +1,41 @@
+name: CLI
+
+on: [push, pull_request, workflow_dispatch]
+
+permissions: {}
+
+jobs:
+  cli:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.10"
+          - "3.12"
+          - "3.13"
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install humanize
+        # The package declares requires-python >=3.11, but the CLI itself is
+        # compatible with 3.10, so ignore the requirement for this smoke test.
+        run: python -m pip install --ignore-requires-python --no-deps -e .
+
+      - name: Smoke test CLI
+        run: |
+          humanize intcomma 1234567
+          python -m humanize naturaltime 3600 --future
+          humanize natural_list alpha beta gamma
+          humanize naturalsize 3000000 --binary
+          humanize precisedelta 3661 --suppress hours
+          humanize intcomma 1234 --locale en_US
+          humanize intcomma 1234 --json | python -c "import json,sys; assert json.load(sys.stdin)['result'] == '1,234'"
