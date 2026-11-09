@@ -318,6 +318,23 @@ def test_locale_replaces_previously_active_locale(
     assert humanize.apnumber(5) == "five"
 
 
+@pytest.mark.parametrize(
+    "argv",
+    [["apnumber", "5"], ["apnumber", "5", "--locale", "xx_XX"]],
+)
+def test_caller_locale_kept_without_locale_flag(
+    capsys: pytest.CaptureFixture[str], argv: list[str]
+) -> None:
+    require_locale("de_DE")
+    humanize.activate("de_DE")
+    try:
+        cli.main(argv)
+        assert humanize.apnumber(5) == "fünf"
+    finally:
+        humanize.deactivate()
+    capsys.readouterr()
+
+
 @pytest.mark.parametrize("locale", ["xx_XX", "not-a-locale"])
 def test_unavailable_locale(capsys: pytest.CaptureFixture[str], locale: str) -> None:
     code, out, err = run(capsys, "intcomma", "1000", "--locale", locale, "--json")

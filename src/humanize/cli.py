@@ -435,22 +435,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     prefix = f"{parser.prog} {args.formatter}: error:"
-    try:
-        if args.locale is not None:
-            try:
-                humanize.activate(args.locale)
-            except OSError:
-                print(
-                    f"{prefix} locale not available: {args.locale!r}", file=sys.stderr
-                )
-                return 1
+    if args.locale is not None:
         try:
-            result = _format(args)
-        except (ArithmeticError, LookupError, TypeError, ValueError) as exc:
-            print(f"{prefix} {exc}", file=sys.stderr)
+            humanize.activate(args.locale)
+        except OSError:
+            print(f"{prefix} locale not available: {args.locale!r}", file=sys.stderr)
             return 1
+    try:
+        result = _format(args)
+    except (ArithmeticError, LookupError, TypeError, ValueError) as exc:
+        print(f"{prefix} {exc}", file=sys.stderr)
+        return 1
     finally:
-        humanize.deactivate()
+        if args.locale is not None:
+            humanize.deactivate()
     if args.json:
         result = json.dumps(
             {
