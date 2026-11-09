@@ -181,8 +181,8 @@ def _precisedelta(args: argparse.Namespace) -> str:
     )
 
 
-def _common_options() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(add_help=False)
+def _common_options() -> _ArgumentParser:
+    parser = _ArgumentParser(add_help=False)
     parser.add_argument(
         "--locale",
         metavar="L",
