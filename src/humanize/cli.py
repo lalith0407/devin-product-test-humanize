@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import argparse
+import json
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
 import humanize
 from humanize.filesize import format_rate
-from humanize.i18n import decimal_separator, thousands_separator
+from humanize.i18n import activate, deactivate, decimal_separator, thousands_separator
 from humanize.time import Unit
 
 TYPE_CHECKING = False
@@ -18,6 +19,7 @@ if TYPE_CHECKING:
 
 _FINE_UNITS = ("seconds", "milliseconds", "microseconds")
 _ALL_UNITS = tuple(unit.name.lower() for unit in Unit)
+_RESERVED_KEYS = frozenset({"command", "locale", "json"})
 
 
 def _number(value: str) -> int | float | str:
@@ -64,7 +66,7 @@ def _default_kwargs(args: argparse.Namespace) -> dict[str, Any]:
     return {
         key: value
         for key, value in vars(args).items()
-        if not key.startswith("_") and key != "command"
+        if not key.startswith("_") and key not in _RESERVED_KEYS
     }
 
 
@@ -240,14 +242,32 @@ _COMMANDS: tuple[_Command, ...] = (
 )
 
 
+def _common_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument(
+        "--locale",
+        metavar="LOCALE",
+        help="Locale to use for this call only (e.g. 'fr_FR')",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output the result as JSON",
+    )
+    return parser
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="humanize",
         description="Format numbers, dates, sizes and lists for humans.",
     )
     subparsers = parser.add_subparsers(dest="command", required=True, metavar="COMMAND")
+    common = _common_parser()
     for command in _COMMANDS:
-        subparser = subparsers.add_parser(command.name, help=command.help)
+        subparser = subparsers.add_parser(
+            command.name, help=command.help, parents=[common]
+        )
         if command.positional is not None:
             dest, kwargs = command.positional
             subparser.add_argument(dest, **kwargs)
@@ -270,6 +290,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     command: _Command = args._command
     convert = command.convert or _default_kwargs
-    result = command.func(**convert(args))
-    print(result)
+    if args.locale is not None:
+        activate(args.locale)
+    try:
+        result = command.func(**convert(args))
+    finally:
+        if args.locale is not None:
+            deactivate()
+    if args.json:
+        print(
+            json.dumps({"command": command.name, "result": result}, ensure_ascii=False)
+        )
+    else:
+        print(result)
     return 0
