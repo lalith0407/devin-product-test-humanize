@@ -110,6 +110,58 @@ def naturalsize(
     return ret
 
 
+def naturalrate(
+    value: float | str,
+    unit: str = "B",
+    per: str = "s",
+    binary: bool = False,
+    format: str = "%.1f",
+) -> str:
+    """Format a throughput rate like a human-readable size per unit of time.
+
+    For example, `1.0 MB/s`.
+
+    The size is formatted with `naturalsize`, so the same suffixes, rounding,
+    and edge cases (zero, negative, and non-numeric input) apply.
+
+    Examples:
+        ```pycon
+        >>> naturalrate(3000000)
+        '3.0 MB/s'
+        >>> naturalrate(3000000, per="h")
+        '3.0 MB/h'
+        >>> naturalrate(3000000, binary=True)
+        '2.9 MiB/s'
+        >>> naturalrate(-4096, per="min")
+        '-4.1 kB/min'
+        >>> naturalrate(10**6, unit="bit")
+        '1.0 Mbit/s'
+
+        ```
+
+    Args:
+        value (int, float, str): Rate to convert.
+        unit (str): Unit of `value`; the default `"B"` is already expressed by
+            the size suffix, so any other value replaces the byte unit in the
+            suffix (e.g. `"bit"` gives `'1.0 Mbit/s'`).
+        per (str): Unit of time the rate is measured over.
+        binary (bool): If `True`, uses binary suffixes (KiB, MiB) with base
+            2<sup>10</sup> instead of 10<sup>3</sup>.
+        format (str): Custom formatter passed to `naturalsize`.
+
+    Returns:
+        str: Human readable representation of a rate.
+    """
+    size = naturalsize(value, binary=binary, format=format)
+    if unit != "B":
+        for ending in ("Bytes", "Byte", "B"):
+            if size.endswith(ending):
+                plural = "s" if ending == "Bytes" else ""
+                size = f"{size[: -len(ending)]}{unit}{plural}"
+                break
+    return f"{size}/{per}"
+
+
 def format_rate(size_str: str, per: str = "s") -> str:
     """Join a human-readable size with a time unit using a slash.
 
@@ -123,4 +175,3 @@ def format_rate(size_str: str, per: str = "s") -> str:
         '300 Bytes/min'
     """
     return f"{size_str}/{per}"
-
