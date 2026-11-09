@@ -47,6 +47,7 @@ urls.Documentation = "https://humanize.readthedocs.io/"
 urls.Funding = "https://tidelift.com/subscription/pkg/pypi-humanize?utm_source=pypi-humanize&utm_medium=pypi"
 urls.Homepage = "https://github.com/python-humanize/humanize"
 urls.Source = "https://github.com/python-humanize/humanize"
+scripts.humanize = "humanize.cli:main"
 
 [tool.hatch]
 version.source = "vcs"
@@ -86,6 +87,8 @@ lint.ignore = [
   "E241",   # Multiple spaces after ','
   "PIE790", # flake8-pie: unnecessary-placeholder
 ]
+lint.per-file-ignores."src/humanize/__main__.py" = [ "D" ]
+lint.per-file-ignores."src/humanize/cli.py" = [ "D" ]
 lint.per-file-ignores."tests/*" = [
   "D",
   "DTZ", # naive local datetimes are intentional
