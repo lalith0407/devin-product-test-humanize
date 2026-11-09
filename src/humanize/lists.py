@@ -35,6 +35,6 @@ def natural_list(items: Iterable[Any]) -> str:
     if len(item_list) == 1:
         return item_list[0]
     elif len(item_list) == 2:
-        return f"{item_list[0]} and {item_list[1]}"
+        return f"{item_list[0]}, and {item_list[1]}"
     else:
         return ", ".join(item_list[:-1]) + f" and {item_list[-1]}"
